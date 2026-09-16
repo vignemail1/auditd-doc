@@ -1,16 +1,23 @@
-# Construire des règles auditd
+# Règles Auditd
 
-Cette page explique comment traduire un besoin de traçabilité en règle `auditctl` persistante. Les règles sont évaluées par le noyau Linux Audit ; `auditd` collecte ensuite les événements et les écrit dans le journal configuré.
+Cette page décrit les règles qui déterminent **quoi** le noyau doit enregistrer. La configuration du démon et des journaux est documentée dans [Configuration d’auditd](configuration.md).
 
-> **Prudence :** tester les règles sur une machine représentative. Une règle trop large peut générer beaucoup d'événements, consommer de l'espace disque et dégrader les performances.
+## Emplacements et chargement
 
-## Où placer les règles
+Les règles temporaires sont chargées avec `auditctl` et disparaissent au redémarrage :
 
-- `/etc/audit/rules.d/*.rules` : fichiers persistants, chargés par `augenrules`.
-- `/etc/audit/audit.rules` : fichier généré ou chargé directement selon la distribution.
-- `auditctl ...` : modification immédiate, généralement non persistante.
+```bash
+sudo auditctl -R /chemin/vers/regles.rules
+sudo auditctl -l
+```
 
-Après modification :
+Pour les règles persistantes, utilisez généralement :
+
+```text
+/etc/audit/rules.d/*.rules
+```
+
+Puis compilez et chargez-les :
 
 ```bash
 sudo augenrules --check
@@ -18,321 +25,282 @@ sudo augenrules --load
 sudo auditctl -l
 ```
 
-Selon la distribution, un redémarrage de `auditd` peut être nécessaire pour la collecte, mais le chargement des règles se fait normalement avec `augenrules --load`.
+Le fichier généré est souvent `/etc/audit/audit.rules`. Évitez de modifier directement ce fichier lorsqu’il est géré par `augenrules`.
 
-## Structure générale
+## Règles de contrôle
 
-Une règle peut sélectionner :
-
-1. une architecture et une famille d'appels système ;
-2. un ou plusieurs appels système ;
-3. des filtres (`uid`, `auid`, chemin, résultat, etc.) ;
-4. une clé de recherche (`-k`) ;
-5. une action (`-a`) ou une surveillance de chemin (`-w`).
-
-Exemple :
+### Verrouiller la configuration
 
 ```text
--a always,exit -F arch=b64 -S unlink,unlinkat -F auid>=1000 -F auid!=-1 -k suppression_fichiers
+-e 2
 ```
 
-Cette règle journalise les suppressions effectuées par un utilisateur authentifié normal, sur une machine 64 bits.
+Valeurs courantes de `-e` :
 
-## Options de règles et valeurs attendues
+- `0` : désactive l’audit ;
+- `1` : active l’audit ;
+- `2` : active l’audit et verrouille la configuration jusqu’au redémarrage.
 
-### `-w chemin`
+Avec `-e 2`, toute modification ultérieure des règles est refusée. Placez cette directive en dernier et testez soigneusement les règles avant de l’activer.
 
-Surveille un fichier ou un répertoire :
-
-```bash
-sudo auditctl -w /etc/ssh/sshd_config -p wa -k ssh_config
-```
-
-- **Valeur attendue :** un chemin absolu existant ou destiné à être surveillé.
-- Avec un fichier : événements concernant ce fichier.
-- Avec un répertoire : la surveillance est récursive selon les capacités et la version du noyau ; pour des règles modernes et précises, préférer `-a ... -F path=` ou `-F dir=`.
-- `-w` est simple mais ancien et moins flexible que les règles syscall.
-
-### `-p permissions`
-
-Précise les types d'accès surveillés avec `-w` :
-
-| Valeur | Signification |
-|---|---|
-| `r` | lecture du fichier |
-| `w` | écriture/modification du contenu |
-| `x` | exécution |
-| `a` | modification des attributs : propriétaire, permissions, timestamps, ACL, etc. |
-
-Les lettres peuvent être combinées : `-p wa`, `-p rwxa`. La valeur `-p` n'est pas une permission Unix octale : elle décrit les accès à auditer.
-
-```bash
-sudo auditctl -w /etc/passwd -p wa -k identite
-```
-
-### `-a action,list`
-
-Ajoute une règle à une liste du noyau :
-
-```text
--a always,exit -F arch=b64 -S openat -F dir=/etc -k lecture_etc
-```
-
-- **`action`** : généralement `always` pour générer un événement ou `never` pour exclure un événement.
-- **`list`** : le plus souvent `exit` pour filtrer le résultat d'un appel système ; autres listes selon le noyau : `task`, `user`, `exclude`, `filesystem`, `io_uring`.
-
-Pour les règles d'appels système, utiliser en général `always,exit`. L'action `never` doit être utilisée avec une grande prudence car elle peut supprimer des événements attendus.
-
-### `-F field=value`
-
-Ajoute un filtre. Les champs courants sont :
-
-| Filtre | Valeur attendue et usage |
-|---|---|
-| `arch=b32` / `arch=b64` | ABI 32 ou 64 bits ; préciser les deux si des programmes 32 bits peuvent être utilisés |
-| `auid=UID` | identifiant de l'utilisateur authentifié, conservé après `sudo` |
-| `auid>=1000` | utilisateurs humains selon la convention locale |
-| `auid!=-1` | exclut les sessions sans identifiant valide ; écrire aussi `unset` selon les outils/version |
-| `uid=UID` | UID effectif au moment de l'appel |
-| `euid=UID` | UID effectif |
-| `suid=UID` | UID sauvegardé |
-| `fsuid=UID` | UID utilisé pour les contrôles du système de fichiers |
-| `gid`, `egid`, `sgid`, `fsgid` | équivalents pour les groupes |
-| `path=/chemin` | fichier précis ; chemin absolu |
-| `dir=/répertoire` | répertoire à surveiller, principalement avec les règles syscall |
-| `success=1` / `success=0` | appel réussi ou échoué |
-| `exit=CODE` | code de retour exact ; souvent une valeur errno numérique |
-| `perm=r|w|x|a` | type d'accès, utile avec `path`/`dir` selon le support |
-| `exe=/chemin/binaire` | exécutable exact à l'origine de l'appel |
-| `msgtype=TYPE` | type d'événement, surtout dans les listes d'exclusion |
-| `key=texte` | clé de recherche ; `-k texte` est la forme abrégée |
-
-Les comparateurs généralement disponibles sont `=`, `!=`, `<`, `<=`, `>`, `>=`. Les valeurs numériques doivent être adaptées aux UID/GID et aux codes errno du système.
-
-Exemples :
-
-```text
--F auid>=1000 -F auid!=-1
--F uid=0
--F path=/etc/sudoers
--F success=0
--F exe=/usr/bin/passwd
-```
-
-### `-S syscall`
-
-Indique un appel système à surveiller :
-
-```text
--S execve
--S openat
--S setuid,setreuid,setresuid
-```
-
-- **Valeur attendue :** nom d'un syscall reconnu par l'architecture ciblée.
-- Plusieurs syscalls peuvent être séparés par des virgules.
-- Ne pas mélanger des syscalls propres à des architectures différentes dans une règle sans vérifier le résultat.
-
-Appels fréquemment utilisés :
-
-| Besoin | Syscalls fréquents |
-|---|---|
-| exécution | `execve`, `execveat` |
-| ouverture/lecture/écriture | `open`, `openat`, `open_by_handle_at` |
-| suppression | `unlink`, `unlinkat`, `rename`, `renameat`, `renameat2` |
-| permissions et propriété | `chmod`, `fchmod`, `fchmodat`, `chown`, `fchownat` |
-| identités privilégiées | `setuid`, `setgid`, `setresuid`, `setresgid`, `capset` |
-| modules noyau | `init_module`, `finit_module`, `delete_module` |
-
-Pour connaître les syscalls disponibles :
-
-```bash
-man 2 syscalls
-ausyscall --dump | less
-ausyscall x86_64 openat
-```
-
-### `-k clé` et `-F key=clé`
-
-Associe une chaîne de recherche à la règle :
-
-```text
--a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=-1 -k executions_utilisateur
-```
-
-- **Valeur attendue :** texte court, explicite et stable ; éviter les espaces.
-- Recherche : `ausearch -k executions_utilisateur -i`.
-- Une règle peut avoir une seule clé pratique pour l'exploitation et le tri des alertes.
-
-### `-e valeur`
-
-Contrôle l'état de l'audit :
-
-```text
--e 1
-```
-
-Valeurs :
-
-| Valeur | Effet |
-|---|---|
-| `0` | audit désactivé |
-| `1` | audit activé |
-| `2` | configuration verrouillée jusqu'au redémarrage |
-
-Placer `-e 2` en dernière ligne du jeu de règles, après toutes les règles. Une fois verrouillé, le noyau refuse les modifications jusqu'au redémarrage. Tester d'abord avec `-e 1`.
-
-### `-b backlog`
-
-Définit la taille de la file d'attente noyau :
+### Nombre de messages noyau
 
 ```text
 -b 8192
 ```
 
-- **Valeur attendue :** entier positif.
-- Une valeur trop faible peut provoquer des pertes en cas de pointe ; une valeur trop élevée consomme davantage de mémoire.
+`-b` définit la taille du tampon noyau en nombre de messages. Augmentez-la si vous observez des pertes sous forte charge, tout en surveillant la mémoire.
 
-### `--backlog_wait_time millisecondes`
-
-Temps pendant lequel le noyau attend lorsqu'il ne peut pas remettre immédiatement un événement :
-
-```text
---backlog_wait_time 60000
-```
-
-- **Valeur attendue :** entier en millisecondes.
-- À calibrer avec `-b`, la charge et les exigences de non-perte.
-
-### `-f mode`
-
-Action lorsque le noyau rencontre une condition critique ou ne peut pas journaliser :
-
-| Mode | Comportement |
-|---|---|
-| `0` | ignorer l'erreur |
-| `1` | écrire un avertissement dans les logs |
-| `2` | déclencher une panique noyau |
+### Réaction aux pertes
 
 ```text
 -f 1
 ```
 
-Le mode `2` est réservé aux environnements dont la continuité de sécurité exige l'arrêt plutôt que l'exécution sans audit.
+`-f` définit l’action en cas d’erreur critique ou de perte de données :
 
-### `-D`
+- `0` : `silent`, aucune alerte ;
+- `1` : `printk`, message noyau ;
+- `2` : `panic`, panique du noyau.
 
-Supprime toutes les règles actuellement chargées :
+Le choix dépend de la politique de disponibilité et d’intégrité. `2` est très strict et doit être validé en exploitation.
+
+## Règles de surveillance de chemins : `-w`
+
+Syntaxe :
 
 ```text
--D
+-w /chemin -p rwxa -k identifiant
 ```
 
-À placer au début d'un fichier de règles pour éviter les doublons lors d'un rechargement. Ne jamais l'exécuter sans recharger immédiatement un jeu de règles valide.
+`-w` ajoute une surveillance d’un fichier ou d’un répertoire.
 
-### `-c mode`
+- chemin absolu attendu ;
+- avec un répertoire, le comportement exact dépend de la version et de la règle : pour une couverture fine, préférez les règles syscall avec filtres ;
+- `-k` ajoute une clé de recherche facultative ;
+- `-p` sélectionne les permissions surveillées.
 
-Ancien contrôle de priorité :
+Permissions de `-p` :
 
-| Mode | Sens |
+| Lettre | Signification |
 |---|---|
-| `0` | aucune garantie de priorité |
-| `1` | priorité basse |
-| `2` | priorité haute |
+| `r` | lecture du contenu |
+| `w` | écriture ou modification |
+| `x` | exécution |
+| `a` | modification des attributs : permissions, propriétaire, horodatage, ACL, etc. |
 
-Les noyaux et versions récentes privilégient les paramètres de backlog et `--backlog_wait_time`. Vérifier `man auditctl` avant utilisation.
+Exemple :
 
-## Méthode de conception
+```text
+-w /etc/ssh/sshd_config -p wa -k ssh_config
+```
 
-### 1. Définir le besoin
+Cette règle surveille les modifications et changements d’attributs, mais pas chaque lecture du fichier.
 
-Exemples : « savoir qui modifie `/etc/ssh/sshd_config` », « savoir quels utilisateurs lancent des commandes privilégiées », « détecter les suppressions de fichiers ».
+> Les règles `-w` sont historiques et moins expressives. Les règles syscall `-a always,exit -F path=...` sont préférables lorsqu’une granularité et des performances prévisibles sont nécessaires.
 
-### 2. Choisir le mécanisme
+## Règles syscall : `-a`
 
-- Fichier ou répertoire précis : `-a always,exit ... -F path/dir=...`.
-- Accès générique par syscall : `-S` avec `arch` et filtres.
-- Règle simple de compatibilité : `-w`, `-p`.
+Syntaxe générale :
 
-### 3. Réduire le périmètre
+```text
+-a action,filter -S syscall -F champ=valeur -k cle
+```
 
-Toujours envisager `arch`, `auid`, `uid`, `exe`, `path`, `dir`, `success`. Une règle limitée est plus exploitable qu'une règle globale.
+Exemple :
 
-### 4. Ajouter une clé
+```text
+-a always,exit -F arch=b64 -S openat -F dir=/etc -F success=1 -k etc_reads
+```
 
-Utiliser une convention, par exemple `identite_*`, `privilege_*`, `config_*`, `execution_*`.
+### Action et filtre
 
-### 5. Tester et mesurer
+Le premier champ de `-a` est l’action :
+
+- `always` : générer un événement ;
+- `never` : ne pas générer d’événement.
+
+Le second champ est la liste de filtrage :
+
+- `task` : événements liés à la création de tâches ;
+- `user` : événements provenant de l’espace utilisateur ;
+- `exit` : filtrage à la sortie d’un appel système ;
+- `exclude` : exclure certains types d’événements.
+
+La forme la plus fréquente est `always,exit`.
+
+## Sélectionner les appels système avec `-S`
+
+`-S` indique un appel système. Il accepte un nom ou plusieurs noms séparés par des virgules, selon la syntaxe supportée :
+
+```text
+-S openat
+-S openat,truncate,rename,unlink
+```
+
+Exemples :
+
+```text
+-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=unset -k perm_changes
+-a always,exit -F arch=b64 -S execve,execveat -F auid>=1000 -k user_exec
+```
+
+Utilisez `ausyscall --dump` pour consulter les appels système connus :
 
 ```bash
-sudo auditctl -D
-sudo auditctl -a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=-1 -k test_exec
-sudo ausearch -k test_exec -ts recent -i
-sudo auditctl -s
+ausyscall --dump
 ```
 
-Ne supprimez pas les règles de production avec `-D` sans procédure de restauration ; pour un test réel, charger un fichier contrôlé avec `augenrules` dans une fenêtre prévue.
+## Filtres avec `-F`
 
-## Exemples prêts à adapter
+`-F` ajoute une condition. La forme est généralement `champ=valeur`, avec des opérateurs de comparaison pour certains champs.
 
-### Modifications de fichiers sensibles
+### Architecture
 
 ```text
--a always,exit -F arch=b64 -F path=/etc/passwd -F perm=wa -F auid!=-1 -k identite
--a always,exit -F arch=b64 -F path=/etc/shadow -F perm=wa -F auid!=-1 -k identite
--a always,exit -F arch=b64 -F path=/etc/sudoers -F perm=wa -F auid!=-1 -k privilege_config
+-F arch=b64
+-F arch=b32
 ```
 
-Ajouter les règles `arch=b32` si la plateforme autorise effectivement des binaires 32 bits.
+Sur une architecture 64 bits, écrivez souvent une règle pour `b64` et une autre pour `b32` si des programmes 32 bits sont autorisés. Une règle sans architecture peut produire une couverture incomplète ou des résultats inattendus.
 
-### Exécutions d'utilisateurs connectés
+### Identités
 
 ```text
--a always,exit -F arch=b64 -S execve,execveat -F auid>=1000 -F auid!=-1 -k execution_utilisateur
+-F uid=0
+-F auid>=1000
+-F auid!=unset
+-F euid=0
 ```
 
-Cette règle peut être volumineuse sur un serveur très actif ; filtrer éventuellement par `exe` ou utiliser une stratégie de collecte adaptée.
+- `uid` : UID réel du processus ;
+- `euid` : UID effectif ;
+- `auid` : UID d’audit associé à la session, généralement conservé après `sudo` ;
+- `unset` : valeur non initialisée, souvent représentée par `4294967295`.
 
-### Suppressions et renommages
+Exemple pour les actions effectuées par des utilisateurs connectés :
 
 ```text
--a always,exit -F arch=b64 -S unlink,unlinkat,rename,renameat,renameat2 -F auid>=1000 -F auid!=-1 -k suppression_renommage
+-a always,exit -F arch=b64 -S execve -F auid>=1000 -F auid!=unset -k user_commands
 ```
 
-### Chargement de modules noyau
+### Chemins et résultats
 
 ```text
--a always,exit -F arch=b64 -S init_module,finit_module,delete_module -F auid!=-1 -k modules_noyau
+-F path=/etc/passwd
+-F dir=/etc/ssh
+-F success=1
+-F success=0
 ```
 
-## Vérification et recherche
+- `path` cible un fichier ;
+- `dir` cible un répertoire pour les appels compatibles ;
+- `success=1` sélectionne les succès ;
+- `success=0` sélectionne les échecs.
+
+### Comparaisons entre champs
+
+Selon la version :
+
+```text
+-F uid!=euid
+-F auid!=obj_uid
+```
+
+Consultez `auditctl(8)` local pour les champs et opérateurs disponibles.
+
+## Clés de recherche : `-k`
+
+```text
+-k ssh_config
+```
+
+`-k` associe un identifiant textuel à la règle. Recherchez ensuite les événements avec :
+
+```bash
+sudo ausearch -k ssh_config -i
+sudo aureport -k --summary
+```
+
+Utilisez des clés courtes, stables et explicites. Une même clé peut être utilisée par plusieurs règles formant un même cas d’usage.
+
+## Exemples utiles
+
+### Surveillance des comptes locaux
+
+```text
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/sudoers -p wa -k privilege
+-w /etc/sudoers.d/ -p wa -k privilege
+```
+
+### Exécutions par les utilisateurs
+
+```text
+-a always,exit -F arch=b64 -S execve,execveat -F auid>=1000 -F auid!=unset -k user_exec
+-a always,exit -F arch=b32 -S execve,execveat -F auid>=1000 -F auid!=unset -k user_exec
+```
+
+### Échecs de connexion
+
+Selon le système et les événements générés par PAM :
+
+```text
+-w /var/log/faillog -p wa -k logins
+-w /var/log/lastlog -p wa -k logins
+```
+
+### Changements de permissions
+
+```text
+-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=unset -k perm_changes
+```
+
+## Tester et dépanner
+
+Afficher les règles actives :
 
 ```bash
 sudo auditctl -l
 sudo auditctl -s
-sudo ausearch -k identite -i
-sudo ausearch -sc execve -ts today -i
+```
+
+Charger une règle temporaire :
+
+```bash
+sudo auditctl -w /etc/hosts -p wa -k hosts_test
+```
+
+Déclencher un événement, puis rechercher :
+
+```bash
+sudo ausearch -k hosts_test -i
+sudo ausearch -ts recent -i
 sudo aureport --summary
 ```
 
-La sortie `ausearch -i` convertit les UID, architectures et autres valeurs en représentations lisibles.
-
-## Références officielles et manpages
-
-- [Linux Audit — documentation](https://github.com/linux-audit/audit-documentation)
-- [audit-userspace](https://github.com/linux-audit/audit-userspace)
-- [auditctl(8), man7.org](https://man7.org/linux/man-pages/man8/auditctl.8.html)
-- [audit.rules(7), man7.org](https://man7.org/linux/man-pages/man7/audit.rules.7.html)
-- [ausearch(8), man7.org](https://man7.org/linux/man-pages/man8/ausearch.8.html)
-- [ausyscall(8), man7.org](https://man7.org/linux/man-pages/man8/ausyscall.8.html)
-- [auditd.conf(5), man7.org](https://man7.org/linux/man-pages/man5/auditd.conf.5.html)
-
-Manpages locales utiles :
+Vérifier les erreurs de chargement :
 
 ```bash
-man 8 auditctl
-man 7 audit.rules
-man 8 ausearch
-man 8 ausyscall
-man 5 auditd.conf
+sudo journalctl -k -b | grep -i audit
+sudo journalctl -u auditd -b
+sudo augenrules --check
 ```
+
+## Bonnes pratiques
+
+- Définissez une clé `-k` par cas d’usage.
+- Ajoutez `arch=b64` et `arch=b32` lorsque la compatibilité 32 bits est nécessaire.
+- Filtrez avec `auid`, `uid`, `path`, `dir` ou `success` pour limiter le volume.
+- Évitez de surveiller indistinctement tous les appels système : le volume peut dégrader les performances et saturer les journaux.
+- Testez les règles avant `-e 2`.
+- Mesurez les pertes et la saturation avec `auditctl -s` et la configuration décrite dans [Configuration d’auditd](configuration.md).
+
+## Références
+
+- [`auditctl(8)` — man7.org](https://man7.org/linux/man-pages/man8/auditctl.8.html)
+- [`ausearch(8)` — man7.org](https://man7.org/linux/man-pages/man8/ausearch.8.html)
+- [`aureport(8)` — man7.org](https://man7.org/linux/man-pages/man8/aureport.8.html)
+- [Linux Audit documentation](https://github.com/linux-audit/audit-documentation)

@@ -1,0 +1,73 @@
+site_name: Sécurité Linux — auditd, AppArmor et SELinux
+site_description: Guide opérationnel pour administrateurs système Linux
+site_url: https://vignemail1.github.io/auditd-doc/
+repo_url: https://github.com/vignemail1/auditd-doc
+repo_name: vignemail1/auditd-doc
+nav:
+  - Accueil: index.md
+  - Fondamentaux: fondamentaux.md
+  - Auditd:
+      - Vue d'ensemble: auditd/index.md
+      - Installation et architecture: auditd/installation.md
+      - Configuration et règles: auditd/configuration.md
+      - Administration et analyse: auditd/administration.md
+      - Outils complémentaires: auditd/outils.md
+      - Dépannage: auditd/depannage.md
+  - AppArmor:
+      - Vue d'ensemble: apparmor/index.md
+      - Installation et architecture: apparmor/installation.md
+      - Profils et règles: apparmor/profils.md
+      - Administration et analyse: apparmor/administration.md
+      - Outils complémentaires: apparmor/outils.md
+      - Dépannage: apparmor/depannage.md
+  - SELinux:
+      - Vue d'ensemble: selinux/index.md
+      - Installation et architecture: selinux/installation.md
+      - Contextes et politiques: selinux/politiques.md
+      - Administration et analyse: selinux/administration.md
+      - Outils complémentaires: selinux/outils.md
+      - Dépannage: selinux/depannage.md
+  - Comparaison et complémentarité: comparaison.md
+  - Méthodologie: methodologie.md
+  - Cas pratiques: cas-pratiques.md
+  - Automatisation et industrialisation: automatisation.md
+  - Supervision et réponse aux incidents: supervision.md
+  - Annexes:
+      - Référence des commandes: annexes/commandes.md
+      - Fichiers importants: annexes/fichiers.md
+      - Glossaire: annexes/glossaire.md
+      - Références: annexes/references.md
+theme:
+  name: material
+  language: fr
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Mode sombre
+    - scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Mode clair
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - tables
+  - toc:
+      permalink: true
+plugins:
+  - search
+strict: true

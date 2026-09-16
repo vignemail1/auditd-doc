@@ -1,73 +1,80 @@
-site_name: Sécurité Linux — auditd, AppArmor et SELinux
-site_description: Guide opérationnel pour administrateurs système Linux
+site_name: Documentation sécurité Linux
+site_description: Documentation administrateur sur auditd, AppArmor et SELinux
+site_author: auditd-doc
 site_url: https://vignemail1.github.io/auditd-doc/
-repo_url: https://github.com/vignemail1/auditd-doc
+
 repo_name: vignemail1/auditd-doc
-nav:
-  - Accueil: index.md
-  - Fondamentaux: fondamentaux.md
-  - Auditd:
-      - Vue d'ensemble: auditd/index.md
-      - Installation et architecture: auditd/installation.md
-      - Configuration et règles: auditd/configuration.md
-      - Administration et analyse: auditd/administration.md
-      - Outils complémentaires: auditd/outils.md
-      - Dépannage: auditd/depannage.md
-  - AppArmor:
-      - Vue d'ensemble: apparmor/index.md
-      - Installation et architecture: apparmor/installation.md
-      - Profils et règles: apparmor/profils.md
-      - Administration et analyse: apparmor/administration.md
-      - Outils complémentaires: apparmor/outils.md
-      - Dépannage: apparmor/depannage.md
-  - SELinux:
-      - Vue d'ensemble: selinux/index.md
-      - Installation et architecture: selinux/installation.md
-      - Contextes et politiques: selinux/politiques.md
-      - Administration et analyse: selinux/administration.md
-      - Outils complémentaires: selinux/outils.md
-      - Dépannage: selinux/depannage.md
-  - Comparaison et complémentarité: comparaison.md
-  - Méthodologie: methodologie.md
-  - Cas pratiques: cas-pratiques.md
-  - Automatisation et industrialisation: automatisation.md
-  - Supervision et réponse aux incidents: supervision.md
-  - Annexes:
-      - Référence des commandes: annexes/commandes.md
-      - Fichiers importants: annexes/fichiers.md
-      - Glossaire: annexes/glossaire.md
-      - Références: annexes/references.md
+repo_url: https://github.com/vignemail1/auditd-doc
+edit_uri: edit/main/docs/
+
 theme:
   name: material
   language: fr
   features:
     - navigation.sections
+    - navigation.expand
     - navigation.top
-    - content.code.copy
     - search.highlight
+    - content.code.copy
   palette:
     - scheme: default
-      primary: blue
-      accent: indigo
       toggle:
         icon: material/brightness-7
         name: Mode sombre
     - scheme: slate
-      primary: blue
-      accent: indigo
       toggle:
         icon: material/brightness-4
         name: Mode clair
+
+plugins:
+  - search:
+      lang: fr
+
 markdown_extensions:
   - admonition
   - attr_list
+  - def_list
   - pymdownx.details
   - pymdownx.highlight
+  - pymdownx.inlinehilite
   - pymdownx.superfences
-  - pymdownx.tabbed
-  - tables
+  - pymdownx.tabbed:
+      alternate_style: true
   - toc:
       permalink: true
-plugins:
-  - search
-strict: true
+
+nav:
+  - Accueil: index.md
+  - Fondamentaux: fondamentaux.md
+  - Auditd:
+      - Vue d'ensemble: auditd/index.md
+      - Installation: auditd/installation.md
+      - Configuration: auditd/configuration.md
+      - Construction des règles: auditd/regles.md
+      - Administration: auditd/administration.md
+      - Outils CLI: auditd/outils.md
+      - Dépannage: auditd/depannage.md
+  - AppArmor:
+      - Vue d'ensemble: apparmor/index.md
+      - Installation: apparmor/installation.md
+      - Profils et règles: apparmor/profils.md
+      - Administration: apparmor/administration.md
+      - Outils CLI: apparmor/outils.md
+      - Dépannage: apparmor/depannage.md
+  - SELinux:
+      - Vue d'ensemble: selinux/index.md
+      - Installation: selinux/installation.md
+      - Politiques et règles: selinux/politiques.md
+      - Administration: selinux/administration.md
+      - Outils CLI: selinux/outils.md
+      - Dépannage: selinux/depannage.md
+  - Comparaison: comparaison.md
+  - Cas pratiques: cas-pratiques.md
+  - Méthodologie: methodologie.md
+  - Automatisation: automatisation.md
+  - Supervision: supervision.md
+  - Annexes:
+      - Commandes: annexes/commandes.md
+      - Fichiers importants: annexes/fichiers.md
+      - Glossaire: annexes/glossaire.md
+      - Références: annexes/references.md

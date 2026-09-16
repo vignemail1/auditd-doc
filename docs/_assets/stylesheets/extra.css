@@ -1,0 +1,15 @@
+/* Styles partagés avec systemd-doc. */
+:root {
+  --md-primary-fg-color: #263238;
+  --md-accent-fg-color: #546e7a;
+}
+
+.md-header__button.md-logo img {
+  height: 2rem;
+  width: auto;
+}
+
+.md-typeset h1,
+.md-typeset h2 {
+  font-weight: 600;
+}

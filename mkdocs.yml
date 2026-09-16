@@ -1,30 +1,33 @@
 site_name: Documentation sécurité Linux
-site_description: Documentation administrateur sur auditd, AppArmor et SELinux
-site_author: auditd-doc
+site_description: Documentation auditd, AppArmor et SELinux
 site_url: https://vignemail1.github.io/auditd-doc/
-
-repo_name: vignemail1/auditd-doc
 repo_url: https://github.com/vignemail1/auditd-doc
+repo_name: vignemail1/auditd-doc
 edit_uri: edit/main/docs/
 
 theme:
   name: material
   language: fr
+  logo: _assets/images/logo.png
+  favicon: _assets/images/logo.png
   features:
+    - navigation.tabs
     - navigation.sections
-    - navigation.expand
     - navigation.top
     - search.highlight
+    - search.share
     - content.code.copy
   palette:
-    - scheme: default
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       toggle:
         icon: material/brightness-7
-        name: Mode sombre
-    - scheme: slate
+        name: Activer le mode sombre
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       toggle:
         icon: material/brightness-4
-        name: Mode clair
+        name: Activer le mode clair
 
 plugins:
   - search:
@@ -33,48 +36,50 @@ plugins:
 markdown_extensions:
   - admonition
   - attr_list
-  - def_list
   - pymdownx.details
   - pymdownx.highlight
   - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - toc:
       permalink: true
+
+extra_css:
+  - _assets/stylesheets/extra.css
 
 nav:
   - Accueil: index.md
   - Fondamentaux: fondamentaux.md
   - Auditd:
-      - Vue d'ensemble: auditd/index.md
+      - Présentation: auditd/index.md
       - Installation: auditd/installation.md
       - Configuration: auditd/configuration.md
-      - Construction des règles: auditd/regles.md
-      - Administration: auditd/administration.md
-      - Outils CLI: auditd/outils.md
-      - Dépannage: auditd/depannage.md
+      - Règles: auditd/regles.md
+      - Outils et analyse: auditd/outils.md
   - AppArmor:
-      - Vue d'ensemble: apparmor/index.md
+      - Présentation: apparmor/index.md
       - Installation: apparmor/installation.md
-      - Profils et règles: apparmor/profils.md
-      - Administration: apparmor/administration.md
-      - Outils CLI: apparmor/outils.md
-      - Dépannage: apparmor/depannage.md
+      - Configuration: apparmor/configuration.md
+      - Profils: apparmor/profils.md
+      - Outils: apparmor/outils.md
   - SELinux:
-      - Vue d'ensemble: selinux/index.md
+      - Présentation: selinux/index.md
       - Installation: selinux/installation.md
-      - Politiques et règles: selinux/politiques.md
-      - Administration: selinux/administration.md
-      - Outils CLI: selinux/outils.md
-      - Dépannage: selinux/depannage.md
-  - Comparaison: comparaison.md
+      - Configuration: selinux/configuration.md
+      - Politiques et contextes: selinux/politiques.md
+      - Outils: selinux/outils.md
   - Cas pratiques: cas-pratiques.md
-  - Méthodologie: methodologie.md
   - Automatisation: automatisation.md
   - Supervision: supervision.md
+  - Comparaison: comparaison.md
+  - Méthodologie: methodologie.md
   - Annexes:
-      - Commandes: annexes/commandes.md
-      - Fichiers importants: annexes/fichiers.md
-      - Glossaire: annexes/glossaire.md
       - Références: annexes/references.md
+      - Glossaire: annexes/glossaire.md
+
+copyright: Copyright &copy; vignemail1

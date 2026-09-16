@@ -1,0 +1,7 @@
+arrange:
+  - index.md
+  - auditd
+  - apparmor
+  - selinux
+  - annexes
+  - ...

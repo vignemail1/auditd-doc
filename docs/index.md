@@ -13,10 +13,10 @@ Ce guide s'adresse aux administrateurs Linux qui doivent **observer**, **compren
 
 ## Parcours recommandé
 
-1. Lire les [fondamentaux](fondamentaux.md).
+1. Lire les [fondamentaux](annexes/fondamentaux.md).
 2. Déployer l'audit avant de restreindre un service.
 3. Étudier AppArmor ou SELinux selon la distribution.
-4. Appliquer la [méthodologie](methodologie.md), puis automatiser.
+4. Appliquer la [méthodologie](annexes/methodologie.md), puis automatiser.
 
 ## Avertissement
 
